@@ -132,7 +132,7 @@ def update_flight(link, campaign):
         'EndDate': date_to_adzerk(campaign.end_date),
         'Price': campaign.cpm,
         'OptionType': 1, # 1: CPM, 2: Remainder
-        'Impressions': campaign.impressions + ADZERK_IMPRESSION_BUMP,
+        'Impressions': campaign.daily_bid,  # Impressions field is the Goal
         'IsUnlimited': False,
         'IsFullSpeed': not campaign.serve_even,
         'Keywords': srname_to_keyword(campaign.sr_name),
@@ -140,7 +140,7 @@ def update_flight(link, campaign):
         'PriorityId': g.adzerk_priority_id, # TODO: property of PromoCampaign
         'IsDeleted': False,
         'IsActive': True,
-        'GoalType': 1, # 1: Impressions
+        'GoalType': 2, # 1: Impressions, 2: Percentage
         'RateType': 2, # 2: CPM
         'IsFreqCap': False,
     }

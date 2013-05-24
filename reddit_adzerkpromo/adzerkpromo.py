@@ -1,4 +1,5 @@
 from collections import namedtuple
+from decimal import Decimal, ROUND_DOWN
 import json
 
 import adzerk
@@ -11,6 +12,7 @@ from r2.lib import (
     promote,
 )
 from r2.lib.pages.things import default_thing_wrapper
+from r2.lib.pages.trafficpages import get_billable_traffic
 from r2.lib.template_helpers import replace_render
 from r2.lib.hooks import HookRegistrar
 from r2.models import (
@@ -18,8 +20,10 @@ from r2.models import (
     CampaignBuilder,
     Frontpage,
     Link,
+    PromotionLog,
     Subreddit,
 )
+from r2.models.traffic import get_traffic_last_modified
 
 
 adzerk.set_key(g.adzerk_key)
@@ -251,6 +255,76 @@ def adzerkpromo_js_config(config):
         'network_id': g.adzerk_network_id,
         'ad_type': g.adzerk_ad_type,
     }
+
+
+def get_billable_impressions(campaign):
+    billable_traffic = get_billable_traffic(campaign)
+    billable_impressions = sum(imp for date, (imp, click) in billable_traffic)
+    return billable_impressions
+
+
+def get_billable_amount(budget, impressions, cpm):
+    value_delivered = impressions / 1000 * cpm
+    billable_amount = min(budget, value_delivered)
+    return Decimal(billable_amount).quantize(Decimal('.01'),
+                                             rounding=ROUND_DOWN)
+
+
+# TODO: Do we want to send an email whenever any campaign ends, not just when
+# the whole link is deactivated?
+# Make expired_campaigns in make_daily_promotions
+def finalize_completed_campaigns(daysago=1):
+    # PromoCampaign.end_date is utc datetime with year, month, day only
+    now = datetime.datetime.now(g.tz)
+    date = now - datetime.timedelta(days=daysago)
+    date = date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # check that traffic is up to date
+    last_modified = get_traffic_last_modified().replace(tzinfo=g.tz)
+    if last_modified < date:
+        raise ValueError("Can't finalize campaigns finished on %s. Most recent"
+                         " traffic data is from %s." % (date, last_modified))
+
+    q = PromoCampaign._query(PromoCampaign.c.end_date == date,
+                             # exclude no transaction and freebies
+                             PromoCampaign.c.trans_id > 0,
+                             data=True)
+    campaigns = list(q)
+    links = Link._byID([camp.link_id for link in links], data=True)
+
+    for camp in campaigns:
+        if hasattr(camp, 'refund_amount'):
+            continue
+
+        link = links[camp.link_id]
+        billable_impressions = get_billable_impressions(camp)
+        billable_amount = get_billable_amount(camp.bid, billable_impressions,
+                                              camp.cpm)
+
+        if billable_amount >= camp.bid:
+            text = ('%s completed with $%s billable (%s impressions @ $%s).'
+                    % (camp, billable_amount, billable_impressions, camp.cpm))
+            PromotionLog.add(link, text)
+            refund_amount = 0.
+        else:
+            refund_amount = camp.bid - billable_amount
+            user = Account._byID(link.author_id, data=True)
+            try:
+                success = authorize.refund_transaction(user, camp.trans_id,
+                                                       camp._id, refund_amount)
+            except authorize.AuthorizeNetException as e:
+                text = ('%s $%s refund failed' % (camp, refund_amount))
+                PromotionLog.add(link, text)
+                g.log.debug(text + ' (response: %s)' % e)
+                continue
+            text = ('%s completed with $%s billable (%s impressions @ $%s).'
+                    ' %s refunded.' % (camp, billable_amount,
+                                       billable_impressions, camp.cpm,
+                                       refund_amount))
+            PromotionLog.add(link, text)
+
+        camp.refund_amount = refund_amount
+        camp._commit()
 
 
 # replacements for r2.lib.promote

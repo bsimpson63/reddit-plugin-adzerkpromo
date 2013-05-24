@@ -242,7 +242,13 @@ def deactivate_link(link):
 @hooks.on('campaign.void')
 def deactivate_campaign(campaign):
     # Do we need to deactivate the link objects and map?
-    az_flight = update_flight(campaign)
+    # Campaign can get voided without ever having been sent to adzerk!
+    link = Link._byID(campaign.link_id, data=True)
+    if not (hasattr(link, 'adzerk_campaign_id') and
+            hasattr(campaign, 'adzerk_flight_id')):
+        return
+
+    az_flight = update_flight(link, campaign)
     az_flight.IsActive = False
     az_flight._send()
 

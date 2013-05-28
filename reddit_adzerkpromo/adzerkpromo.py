@@ -1,5 +1,4 @@
 from collections import namedtuple
-from decimal import Decimal, ROUND_DOWN
 import json
 
 import adzerk
@@ -12,7 +11,6 @@ from r2.lib import (
     promote,
 )
 from r2.lib.pages.things import default_thing_wrapper
-from r2.lib.pages.trafficpages import get_billable_traffic
 from r2.lib.template_helpers import replace_render
 from r2.lib.hooks import HookRegistrar
 from r2.models import (
@@ -266,19 +264,6 @@ def adzerkpromo_js_config(config):
     }
 
 
-def get_billable_impressions(campaign):
-    billable_traffic = get_billable_traffic(campaign)
-    billable_impressions = sum(imp for date, (imp, click) in billable_traffic)
-    return billable_impressions
-
-
-def get_billable_amount(budget, impressions, cpm):
-    value_delivered = impressions / 1000 * cpm
-    billable_amount = min(budget, value_delivered)
-    return Decimal(billable_amount).quantize(Decimal('.01'),
-                                             rounding=ROUND_DOWN)
-
-
 # TODO: Do we want to send an email whenever any campaign ends, not just when
 # the whole link is deactivated?
 # Make expired_campaigns in make_daily_promotions
@@ -306,9 +291,9 @@ def finalize_completed_campaigns(daysago=1):
             continue
 
         link = links[camp.link_id]
-        billable_impressions = get_billable_impressions(camp)
-        billable_amount = get_billable_amount(camp.bid, billable_impressions,
-                                              camp.cpm)
+        billable_impressions = promote.get_billable_impressions(camp)
+        billable_amount = promote.get_billable_amount(camp,
+                                                      billable_impressions)
 
         if billable_amount >= camp.bid:
             text = ('%s completed with $%s billable (%s impressions @ $%s).'

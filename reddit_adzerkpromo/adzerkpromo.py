@@ -218,7 +218,6 @@ def update_adzerk(link, campaign):
     PromotionLog.add(link, text)
 
 
-@hooks.on('promote.make_daily_promotions')
 def make_adzerk_promotions(offset=0):
     # make sure is_charged_transaction and is_accepted are the only criteria
     # for a campaign going live!
@@ -227,6 +226,16 @@ def make_adzerk_promotions(offset=0):
         if (authorize.is_charged_transaction(campaign.trans_id, campaign._id)
             and promote.is_accepted(link)):
             update_adzerk(link, campaign)
+
+
+@hooks.on('promote.make_daily_promotions')
+def adzerk_live_promotions(offset=0):
+    make_adzerk_promotions(offset)
+
+
+@hooks.on('promote.charge_pending')
+def adzerk_future_promotions(offset=1):
+    make_adzerk_promotions(offset)
 
 
 @hooks.on('promotion.void')

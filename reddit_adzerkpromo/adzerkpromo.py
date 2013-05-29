@@ -25,6 +25,10 @@ from r2.models import (
 adzerk.set_key(g.adzerk_key)
 hooks = HookRegistrar()
 
+ADZERK_IMPRESSION_BUMP = 500    # add extra impressions to the number we
+                                # request from adzerk in case their count
+                                # is lower than our internal traffic tracking
+
 
 def date_to_adzerk(d):
     return d.strftime('%m/%d/%Y')
@@ -128,7 +132,7 @@ def update_flight(link, campaign):
         'EndDate': date_to_adzerk(campaign.end_date),
         'Price': campaign.cpm,
         'OptionType': 1, # 1: CPM, 2: Remainder
-        'Impressions': campaign.impressions,
+        'Impressions': campaign.impressions + ADZERK_IMPRESSION_BUMP,
         'IsUnlimited': False,
         'IsFullSpeed': not campaign.serve_even,
         'Keywords': srname_to_keyword(campaign.sr_name),
@@ -182,7 +186,7 @@ def update_cfmap(link, campaign):
         'Iframe': False,
         'Creative': {'Id': az_creative.Id},
         'FlightId': az_flight.Id,
-        'Impressions': campaign.impressions,
+        'Impressions': campaign.impressions + ADZERK_IMPRESSION_BUMP,
         'IsDeleted': False,
         'IsActive': True,
     }

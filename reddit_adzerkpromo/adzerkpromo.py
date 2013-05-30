@@ -21,7 +21,7 @@ from r2.models import (
     PromotionLog,
     Subreddit,
 )
-from r2.models.traffic import get_traffic_last_modified
+from r2.models.traffic import get_missing_traffic
 
 
 adzerk.set_key(g.adzerk_key)
@@ -282,17 +282,21 @@ def finalize_completed_campaigns(daysago=1):
     date = now - datetime.timedelta(days=daysago)
     date = date.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # check that traffic is up to date
-    last_modified = get_traffic_last_modified().replace(tzinfo=g.tz)
-    if last_modified < date:
-        raise ValueError("Can't finalize campaigns finished on %s. Most recent"
-                         " traffic data is from %s." % (date, last_modified))
-
     q = PromoCampaign._query(PromoCampaign.c.end_date == date,
                              # exclude no transaction and freebies
                              PromoCampaign.c.trans_id > 0,
                              data=True)
     campaigns = list(q)
+
+    # check that traffic is up to date
+    earliest_campaign = min(campaigns, key=lambda camp: camp.start_date)
+    start, end = promote.get_total_run(earliest_campaign)
+    missing_traffic = get_missing_traffic(start.replace(tzinfo=None),
+                                          date.replace(tzinfo=None))
+    if missing_traffic:
+        raise ValueError("Can't finalize campaigns finished on %s."
+                         "Missing traffic from %s" % (date, missing_traffic))
+
     links = Link._byID([camp.link_id for link in links], data=True)
 
     for camp in campaigns:

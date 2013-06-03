@@ -137,7 +137,7 @@ def update_flight(link, campaign):
         'OptionType': 1, # 1: CPM, 2: Remainder
         'Impressions': campaign.impressions + ADZERK_IMPRESSION_BUMP,
         'IsUnlimited': False,
-        'IsFullSpeed': not campaign.serve_even,
+        'IsFullSpeed': False,
         'Keywords': srname_to_keyword(campaign.sr_name),
         'CampaignId': az_campaign.Id,
         'PriorityId': g.adzerk_priority_id, # TODO: property of PromoCampaign

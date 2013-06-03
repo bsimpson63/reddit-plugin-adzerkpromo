@@ -354,12 +354,17 @@ def adzerk_request(keywords, timeout=0.1):
     url = 'http://engine.adzerk.net/api/v2'
     headers = {'content-type': 'application/json'}
 
+    timer = g.stats.get_timer("adzerk_timer")
+    timer.start()
+
     try:
         r = requests.post(url, data=json.dumps(data), headers=headers,
                           timeout=timeout)
     except requests.exceptions.Timeout:
         g.log.info('adzerk request timeout')
         return None
+
+    timer.stop()
 
     response = json.loads(r.text)
     decision = response['decisions']['div1']

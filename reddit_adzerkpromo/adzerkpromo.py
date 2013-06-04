@@ -38,7 +38,7 @@ def date_to_adzerk(d):
 
 
 def srname_to_keyword(srname):
-    return srname or 'reddit.com'
+    return srname or Frontpage.name
 
 
 def render_link(link, campaign):

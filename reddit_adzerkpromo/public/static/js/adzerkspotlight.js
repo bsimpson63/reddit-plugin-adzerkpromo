@@ -32,8 +32,8 @@ r.spotlight.requestPromo = function() {
               campaign = body.campaign,
               promo = r.spotlight.fetchPromo(link, campaign)
           $.when(promo).done(function(promo) {
-              promo.data('adserver_imp_pixel', impressionPixel)
-              promo.data('adserver_click_url', clickUrl)
+              promo.data('adserverImpPixel', impressionPixel)
+              promo.data('adserverClickUrl', clickUrl)
           })
           return promo
       } else {

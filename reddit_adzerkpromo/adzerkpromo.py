@@ -133,7 +133,7 @@ def update_flight(link, campaign):
     d = {
         'StartDate': date_to_adzerk(campaign.start_date),
         'EndDate': date_to_adzerk(campaign.end_date),
-        'Price': campaign.cpm,
+        'Price': campaign.cpm / 100.,   # convert from cents to dollars
         'OptionType': 1, # 1: CPM, 2: Remainder
         'Impressions': campaign.impressions + ADZERK_IMPRESSION_BUMP,
         'IsUnlimited': False,
